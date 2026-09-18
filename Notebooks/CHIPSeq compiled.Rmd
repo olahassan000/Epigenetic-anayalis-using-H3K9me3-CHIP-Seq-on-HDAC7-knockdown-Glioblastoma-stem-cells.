@@ -1,0 +1,332 @@
+---
+title: "H3K9me3 CHIPSeq rerun"
+author: "Ola Hassan"
+date: "1/4/20234"
+output:
+  pdf_document: default
+  html_document: default
+---
+
+Read the bed files
+```{r }
+
+require(ChIPseeker)
+require(TxDb.Hsapiens.UCSC.hg19.knownGene)
+txdb <- TxDb.Hsapiens.UCSC.hg19.knownGene
+require(clusterProfiler)
+library(org.Hs.eg.db)
+
+
+
+peak_CT.1 <- readPeakFile("1_0GL8_028PBrown_siCT-1_H3K9me3_hg38_i81_uniqnorm_hits-W200-G600-FDR1E-10-island_filtered.bed")
+covplot(peak_CT.1)
+
+peak_CT.2 <- readPeakFile("2_0GL9_028PBrown_siCT-2_H3K9me3_hg38_i82_uniqnorm_hits-W200-G600-FDR1E-10-island_filtered.bed")
+covplot(peak_CT.2)
+
+peak_H7.1 <- readPeakFile("3_0GLA_028PBrown_siH7-1_H3K9me3_hg38_i85_uniqnorm_hits-W200-G600-FDR1E-10-island_filtered.bed")
+covplot(peak_H7.1)
+
+peak_H7.2 <- readPeakFile("6_0GVZ_028PBrown_siH7-2_H3K9me3_hg38_i70_uniqnorm_hits-W200-G600-FDR1E-10-island_filtered.bed")
+covplot(peak_H7.2)
+
+
+covplot(peak_CT.1, weightCol="V4")
+covplot(peak_CT.2, weightCol="V4")
+covplot(peak_H7.1, weightCol="V4")
+covplot(peak_H7.2, weightCol="V4")
+
+
+```
+
+
+Heatmap of ChIP binding to TSS regions
+
+```{r }
+
+promoter <- getPromoters(TxDb=txdb, upstream=3000, downstream=3000)
+
+
+tagMatrix_CT.1 <- getTagMatrix(peak_CT.1, windows=promoter)
+tagMatrix_CT.2 <- getTagMatrix(peak_CT.2, windows=promoter)
+tagMatrix_H7.1 <- getTagMatrix(peak_H7.1, windows=promoter)
+tagMatrix_H7.2 <- getTagMatrix(peak_H7.2, windows=promoter)
+
+tagHeatmap(tagMatrix_CT.1, xlim=c(-3000, 3000), color="red")
+tagHeatmap(tagMatrix_CT.2, xlim=c(-3000, 3000), color="red")
+tagHeatmap(tagMatrix_H7.1, xlim=c(-3000, 3000), color="red")
+tagHeatmap(tagMatrix_H7.2, xlim=c(-3000, 3000), color="red")
+
+
+#Average Profile of ChIP peaks binding to TSS region
+
+plotAvgProf(tagMatrix_CT.1, xlim=c(-3000, 3000), 
+            xlab="Genomic Region (5'->3') CT.1", ylab = "Read Count Frequency")
+
+plotAvgProf(tagMatrix_CT.2, xlim=c(-3000, 3000), 
+            xlab="Genomic Region (5'->3') CT.2", ylab = "Read Count Frequency")
+
+plotAvgProf(tagMatrix_H7.1, xlim=c(-3000, 3000), 
+            xlab="Genomic Region (5'->3') H7.1", ylab = "Read Count Frequency")
+
+plotAvgProf(tagMatrix_H7.2, xlim=c(-3000, 3000), 
+            xlab="Genomic Region (5'->3') H7.2", ylab = "Read Count Frequency")
+
+
+
+
+```
+
+
+Peak Annotation
+```{r }
+peakAnno_CT1 <- annotatePeak(peak_CT.1, tssRegion=c(-3000, 3000), 
+                         TxDb=txdb, annoDb="org.Hs.eg.db")
+
+peakAnno_CT2 <- annotatePeak(peak_CT.2, tssRegion=c(-3000, 3000), 
+                         TxDb=txdb, annoDb="org.Hs.eg.db")
+
+peakAnno_H71 <- annotatePeak(peak_H7.1, tssRegion=c(-3000, 3000), 
+                         TxDb=txdb, annoDb="org.Hs.eg.db")
+
+peakAnno_H72 <- annotatePeak(peak_H7.2, tssRegion=c(-3000, 3000), 
+                         TxDb=txdb, annoDb="org.Hs.eg.db")
+
+```
+
+
+
+Visualize Genomic Annotation
+```{r }
+#adjust the margins for titles
+
+par(mar=c(5,4,5,2)+0.2)
+par(oma=c(0,0,2,0))
+par(ps = 10, cex = 4, cex.main = 2) 
+title(line=3, cex=1, 'main title')
+par(mfrow=c(1,4), mar = c(5, 4, 4, 2) + 0.1)
+
+plotAnnoPie(peakAnno_CT1, main='CT_1')
+plotAnnoPie(peakAnno_CT2, main='CT_2')
+plotAnnoPie(peakAnno_H71, main = 'H7_1')
+plotAnnoPie(peakAnno_H72, main = 'H7_2')
+
+par(mfrow = c(1,4))
+plotAnnoBar(peakAnno_CT1)
+plotAnnoBar(peakAnno_CT1)
+plotAnnoBar(peakAnno_H71)
+plotAnnoBar(peakAnno_H72)
+
+#Since some annotation overlap, full annotation can show the overlap,
+vennpie(peakAnno_CT1)
+vennpie(peakAnno_CT2)
+vennpie(peakAnno_H71)
+vennpie(peakAnno_H72)
+
+#Full annonatioation with the overlap
+upsetplot(peakAnno_CT1)
+upsetplot(peakAnno_CT2)
+upsetplot(peakAnno_H71)
+upsetplot(peakAnno_H72)
+
+library(ReactomePA)
+
+pathway_CT.1 <- enrichPathway(as.data.frame(peakAnno_CT1)$geneId)
+head(pathway_CT.1)
+
+pathway_CT.2 <- enrichPathway(as.data.frame(peakAnno_CT2)$geneId)
+head(pathway_CT.2)
+
+pathway_H7.1 <- enrichPathway(as.data.frame(peakAnno_H71)$geneId)
+head(pathway_H7.1)
+
+pathway_H7.2 <- enrichPathway(as.data.frame(peakAnno_H72)$geneId)
+head(pathway_H7.1)
+
+```
+
+
+Compiling the 4 bedfiles in one list
+```{r }
+peaks <- as.list(c ("1_0GL8_028PBrown_siCT-1_H3K9me3_hg38_i81_uniqnorm_hits-W200-G600-FDR1E-10-island_filtered.bed",
+             "2_0GL9_028PBrown_siCT-2_H3K9me3_hg38_i82_uniqnorm_hits-W200-G600-FDR1E-10-island_filtered.bed",
+             "3_0GLA_028PBrown_siH7-1_H3K9me3_hg38_i85_uniqnorm_hits-W200-G600-FDR1E-10-island_filtered.bed",
+           "6_0GVZ_028PBrown_siH7-2_H3K9me3_hg38_i70_uniqnorm_hits-W200-G600-FDR1E-10-island_filtered.bed" ))
+
+peak=GenomicRanges::GRangesList(CT.1=readPeakFile(peaks[[1]]),
+                                CT.2=readPeakFile(peaks[[2]]),
+                                H7.1=readPeakFile(peaks[[3]]),
+                                H7.2=readPeakFile(peaks[[4]]))
+
+
+
+# the 4 peaks together
+tagMatrixList <- lapply(peak, getTagMatrix, windows=promoter)
+tagHeatmap(tagMatrixList, xlim=c(-3000, 3000),  color= "red")
+
+
+
+
+plotAvgProf(tagMatrixList, xlim=c(-3000, 3000), 
+            xlab="Genomic Region (5'->3') all peaks", ylab = "Read Count Frequency")
+
+plotAvgProf(tagMatrixList, xlim=c(-3000, 3000), conf=0.95,resample=100, facet="row")
+
+#peak annontation
+peakAnnoList=lapply(peak, annotatePeak, TxDb=txdb, tssRegion=c(-3000, 3000), verbose=FALSE)
+
+```
+
+Visualize distribution of TF-binding loci relative to TSS for the 4 CHIPseq samples
+
+```{r }
+                      
+plotAnnoBar(peakAnnoList)
+
+plotDistToTSS(peakAnnoList)
+```
+
+
+Overlap between peak sets
+```{r }
+genes= lapply(peakAnnoList, function(i) as.data.frame(i)$geneId)
+vennplot(genes)
+
+
+```
+
+Extract near by genes
+```{r }
+
+library(CompGO)
+library(TxDb.Hsapiens.UCSC.hg38.knownGene)
+
+CT.1genes = annotateBedFromDb(gRanges=peak_CT.1, db=TxDb.Hsapiens.UCSC.hg38.knownGene)
+CT.1genes = unlist(CT.1genes$gene_id)
+head(CT.1genes)
+
+
+CT.2genes = annotateBedFromDb(gRanges=peak_CT.2, db=TxDb.Hsapiens.UCSC.hg38.knownGene)
+CT.2genes = unlist(CT.2genes$gene_id)
+head(CT.2genes)
+
+H7.1genes = annotateBedFromDb(gRanges=peak_H7.1, db=TxDb.Hsapiens.UCSC.hg38.knownGene)
+H7.1genes = unlist(H7.1genes$gene_id)
+head(H7.1genes)
+
+H7.2genes = annotateBedFromDb(gRanges=peak_H7.2, db=TxDb.Hsapiens.UCSC.hg38.knownGene)
+H7.2genes = unlist(H7.2genes$gene_id)
+head(H7.2genes)
+
+
+```
+
+##Making an object from the genome wide annotation for Human.
+
+```{r }
+library(org.Hs.eg.db)
+HA = org.Hs.eg.db
+
+```
+
+##Now annotate gene IDs to gene symbols and list those genes
+
+```{r }
+
+#CT1
+CT.1genes = select(HA, keys = CT.1genes, columns = c("ENTREZID", "SYMBOL"), keytype = "ENTREZID")
+head(CT.1genes)
+
+CT.1genelist = unique(CT.1genes$SYMBOL)
+head(CT.1genelist) #6925
+
+#CT2
+CT.2genes = select(HA, keys = CT.2genes, columns = c("ENTREZID", "SYMBOL"), keytype = "ENTREZID")
+head(CT.2genes)
+
+CT.2genelist = unique(CT.2genes$SYMBOL)
+head(CT.2genelist) #7258
+
+
+
+#H7.1
+H7.1genes = select(HA, keys = H7.1genes, columns = c("ENTREZID", "SYMBOL"), keytype = "ENTREZID")
+head(H7.1genes)
+
+H7.1genelist = unique(H7.1genes$SYMBOL)
+head(H7.1genelist) #6845
+
+
+#H7.2
+H7.2genes = select(HA, keys = H7.2genes, columns = c("ENTREZID", "SYMBOL"), keytype = "ENTREZID")
+head(H7.2genes)
+
+H7.2genelist = unique(H7.2genes$SYMBOL)
+head(H7.2genelist) #7517
+
+```
+
+
+## Combine lists and remove duplications
+```{r }
+both_CT = intersect(CT.1genelist, CT.2genelist)
+head(both_CT)
+
+
+both_CT <- data.frame(both_CT)
+head(both_CT) #6023 genes
+
+
+both_H7 = intersect(H7.1genelist, H7.2genelist)
+head(both_H7)
+
+both_H7 <- data.frame(both_H7)
+head(both_H7) #6138 genes
+
+```
+
+
+##Unique genes in both groups
+```{r }
+
+Unique_CT = setdiff(both_CT, both_H7)
+head(Unique_CT) # 722 genes
+
+
+Unique_H7 = setdiff(both_H7, both_CT)
+head(Unique_H7) # 837 genes
+
+write.csv(Unique_CT, "Gene mapping Unique for siCT and not siH7.csv", na="", row.names=F)
+write.csv(Unique_H7, "Gene mapping Unique for siH7.csv", na="", row.names=F)
+
+
+```
+
+
+
+
+
+
+genes = lapply(peakAnnoList, function(i) as.data.frame(i)$geneId)
+names(genes) = sub("_", "\n", names(genes))
+compMF <- compareCluster(geneCluster   = genes, 
+                         fun           = "enrichGO",
+                         ont           = "MF",
+                         OrgDb         ="org.Hs.eg.db",
+                         pvalueCutoff  = 0.05, 
+                         pAdjustMethod = "BH"
+                         )
+plot(compMF, showCategory = 20, title = "Molecular Function Enrichment")
+
+genes = lapply(peakAnnoList, function(i) as.data.frame(i)$geneId)
+names(genes) = sub("_", "\n", names(genes))
+compKEGG <- compareCluster(geneCluster   = genes,
+                         fun           = "enrichKEGG",
+                         pvalueCutoff  = 0.05,
+                         pAdjustMethod = "BH")
+dotplot(compKEGG, showCategory = 15, title = "KEGG Pathway Enrichment Analysis")
+
+
+
+
+```
